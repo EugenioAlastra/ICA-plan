@@ -1,0 +1,411 @@
+<title>Estudio en Dupla</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: una columna angosta tipo cuaderno. Encabezado con materia y cuenta regresiva, pestañas, y listas por día. El resaltador amarillo marca "hoy". */
+:root{
+  --bg:#f3f6f8; --surface:#ffffff; --ink:#142230; --muted:#566774; --line:#d9e1e7;
+  --accent:#1d5f94; --accent-ink:#ffffff; --soft:#e8f0f6; --hl:#ffe45c;
+  --ok:#1f7a4d; --warn:#b4531a; --warn-soft:#fbeadf; --ok-soft:#e1f2e8;
+  --display:'Space Grotesk','Segoe UI',system-ui,sans-serif; --text:'Inter','Segoe UI',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f171e; --surface:#16212b; --ink:#e6edf2; --muted:#93a4b1; --line:#27343f;
+  --accent:#6cb2e8; --accent-ink:#0b1620; --soft:#1c2b38; --hl:#6b5f10;
+  --ok:#5cc58e; --warn:#f0925a; --warn-soft:#33241a; --ok-soft:#173226; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f171e; --surface:#16212b; --ink:#e6edf2; --muted:#93a4b1; --line:#27343f;
+  --accent:#6cb2e8; --accent-ink:#0b1620; --soft:#1c2b38; --hl:#6b5f10;
+  --ok:#5cc58e; --warn:#f0925a; --warn-soft:#33241a; --ok-soft:#173226; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--text);padding-block:20px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hl{background:linear-gradient(transparent 58%,var(--hl) 58%);padding:0 .15em;margin:0 -.15em}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between}
+.top h1{font-size:1.7rem;line-height:1.15}
+.eyebrow{font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.count{font-family:var(--display);text-align:right}
+.count b{font-size:1.7rem;display:block;line-height:1;font-variant-numeric:tabular-nums}
+.count span{font-size:.78rem;color:var(--muted)}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;font-size:.82rem;text-decoration:underline;text-underline-offset:3px}
+.cfg{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+
+/* tabs */
+.tabs{display:flex;gap:4px;background:var(--soft);padding:4px;border-radius:10px;overflow-x:auto}
+.tab{flex:1 0 auto;background:none;border:0;border-radius:7px;padding:8px 12px;cursor:pointer;font-weight:600;color:var(--muted);white-space:nowrap;display:flex;gap:6px;align-items:center;justify-content:center}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.badge{background:var(--accent);color:var(--accent-ink);border-radius:99px;font-size:.72rem;min-width:1.4em;padding:0 .45em;line-height:1.5;font-variant-numeric:tabular-nums}
+.badge.off{background:var(--line);color:var(--muted)}
+
+/* forms */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
+label{font-size:.8rem;font-weight:600;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+input,textarea{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%}
+textarea{resize:vertical;min-height:64px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.row>*{flex:1 1 160px;min-width:0}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:7px;padding:9px 14px;font-weight:600;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+.btn.sm{padding:5px 10px;font-size:.82rem}
+.btn:disabled{opacity:.5;cursor:default}
+.row .btn{flex:0 0 auto}
+
+/* lists */
+.sect{display:flex;flex-direction:column;gap:8px}
+.sect-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:6px}
+.sect-h h2{font-size:1.05rem}
+.sect-h small{color:var(--muted);font-variant-numeric:tabular-nums}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;gap:12px;align-items:flex-start}
+.card>.body{flex:1;min-width:0}
+.card.late{border-color:var(--warn)}
+.title{overflow-wrap:anywhere}
+.done .title{text-decoration:line-through;color:var(--muted)}
+.detail{color:var(--muted);font-size:.86rem;overflow-wrap:anywhere;white-space:pre-wrap}
+.meta{color:var(--muted);font-size:.78rem;margin-top:4px;display:flex;flex-wrap:wrap;gap:4px 10px}
+.check{flex:0 0 auto;width:24px;height:24px;border-radius:7px;border:2px solid var(--muted);background:transparent;cursor:pointer;display:grid;place-items:center;color:transparent;font-size:15px;line-height:1;margin-top:1px}
+.done .check{background:var(--ok);border-color:var(--ok);color:#fff}
+.acts{display:flex;gap:2px;flex:0 0 auto}
+.icon{background:none;border:0;color:var(--muted);cursor:pointer;padding:4px 7px;border-radius:6px;font-size:.82rem}
+.icon:hover{background:var(--soft);color:var(--ink)}
+.icon.danger{color:var(--warn)}
+.chip{display:inline-block;background:var(--soft);color:var(--accent);border-radius:99px;padding:1px 9px;font-size:.74rem;font-weight:600}
+.chip.late{background:var(--warn-soft);color:var(--warn)}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.bar{height:6px;background:var(--line);border-radius:9px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ok);transition:width .25s}
+.explain{background:var(--soft);border-radius:8px;padding:10px 12px;margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+.explain .eyebrow{display:block;margin-bottom:2px}
+.empty{border:1px dashed var(--line);border-radius:10px;padding:22px 16px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-family:var(--display);margin-bottom:2px}
+.hero{display:flex;flex-direction:column;gap:10px}
+.hero h2{font-size:1.4rem}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.pill{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:4px 12px;cursor:pointer;font-size:.84rem}
+.pill[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.note{font-size:.8rem;color:var(--muted)}
+.note.warn{color:var(--warn)}
+.next li{display:flex;gap:8px;justify-content:space-between}
+.next{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.next span:last-child{color:var(--muted);font-size:.82rem;white-space:nowrap}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:max(16px,env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:.88rem;max-width:90vw;z-index:20}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Materia</div>
+      <h1 id="subjectName"><span class="hl">Nuestra materia</span></h1>
+      <button class="linkbtn" id="cfgToggle" type="button">Editar materia y fecha de examen</button>
+    </div>
+    <div class="count" id="countdown" hidden></div>
+  </header>
+
+  <form class="panel cfg" id="cfgForm" hidden>
+    <label style="flex:2 1 200px">Nombre de la materia<input id="cfgName" maxlength="80" placeholder="Ej: Análisis Matemático II"></label>
+    <label style="flex:1 1 150px">Fecha del examen<input id="cfgExam" type="date"></label>
+    <button class="btn" type="submit">Guardar</button>
+  </form>
+
+  <nav class="tabs" role="tablist" aria-label="Secciones">
+    <button class="tab" role="tab" data-tab="hoy" type="button">Hoy</button>
+    <button class="tab" role="tab" data-tab="plan" type="button">Plan</button>
+    <button class="tab" role="tab" data-tab="dudas" type="button">Dudas <span class="badge" id="bDudas">0</span></button>
+    <button class="tab" role="tab" data-tab="resueltas" type="button">Resueltas <span class="badge off" id="bRes">0</span></button>
+  </nav>
+  <div class="note warn" id="loadNote" hidden>No pudimos conectar todavía. Lo que ves puede estar desactualizado.</div>
+  <div class="note warn" id="noDb" hidden>Para ver y guardar datos compartidos tenés que abrir esta página con tu sesión iniciada.</div>
+
+  <!-- HOY -->
+  <section data-view="hoy" id="viewHoy"></section>
+
+  <!-- PLAN -->
+  <section data-view="plan" class="sect" hidden>
+    <form class="panel" id="taskForm">
+      <h2 style="font-size:1.05rem" id="taskFormTitle">Agregar tareas al plan</h2>
+      <div class="row">
+        <label style="flex:0 1 170px">Día<input id="tDate" type="date" required></label>
+        <label style="flex:3 1 260px">Qué hay que hacer (una tarea por línea)
+          <textarea id="tLines" rows="3" placeholder="Leer capítulo 3&#10;Resolver ejercicios 1 al 10 de la guía"></textarea></label>
+        <button class="btn" type="submit">Agregar</button>
+      </div>
+    </form>
+    <div class="filters" role="group" aria-label="Filtro del plan">
+      <button class="pill" type="button" data-filter="next" aria-pressed="true">Desde hoy</button>
+      <button class="pill" type="button" data-filter="all" aria-pressed="false">Todo</button>
+      <button class="pill" type="button" data-filter="pending" aria-pressed="false">Solo pendientes</button>
+    </div>
+    <div id="planList" class="sect"></div>
+  </section>
+
+  <!-- DUDAS -->
+  <section data-view="dudas" class="sect" hidden>
+    <form class="panel" id="doubtForm">
+      <h2 style="font-size:1.05rem">Anotar una duda para el profe</h2>
+      <label>La duda<textarea id="dText" rows="3" placeholder="Ej: ¿Por qué en el ejercicio 4 se puede aplicar el teorema sin verificar la continuidad?"></textarea></label>
+      <div class="row">
+        <label>Tema (opcional)<input id="dTopic" maxlength="60" placeholder="Ej: Unidad 3 - Límites"></label>
+        <button class="btn" type="submit">Guardar duda</button>
+      </div>
+    </form>
+    <div id="doubtList" class="sect"></div>
+  </section>
+
+  <!-- RESUELTAS -->
+  <section data-view="resueltas" class="sect" hidden>
+    <label>Buscar en las dudas resueltas<input id="resSearch" type="search" placeholder="Palabra de la duda, del tema o de la explicación"></label>
+    <div id="resList" class="sect"></div>
+  </section>
+</div>
+<div id="toast" hidden></div>
+
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)};
+  var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+  var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+  var pad=function(n){return String(n).padStart(2,'0')};
+  var ymd=function(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+  var parse=function(s){var p=s.split('-').map(Number);return new Date(p[0],p[1]-1,p[2])};
+  var todayStr=function(){return ymd(new Date())};
+  var diffDays=function(a,b){return Math.round((parse(b)-parse(a))/864e5)};
+  var cap=function(s){return s.charAt(0).toUpperCase()+s.slice(1)};
+  var longDate=function(s){return cap(parse(s).toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'}))};
+  var shortDate=function(ms){return new Date(ms).toLocaleDateString('es-AR',{day:'numeric',month:'short'})};
+  function relLabel(s){var d=diffDays(todayStr(),s);if(d===0)return 'Hoy';if(d===1)return 'Mañana';if(d===-1)return 'Ayer';
+    return d>0?'En '+d+' días':'Hace '+(-d)+' días'}
+
+  var tasks=[],doubts=[],cfg={},names={},me=null,userApi=null,dbApi=null;
+  var tab='hoy',filter='next',search='';
+  var ui={editingTask:null,confirm:null,resolving:null,editingDoubt:null,drafts:{}};
+  var loaded={tasks:false,doubts:false};
+
+  function toast(msg){var t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(function(){t.hidden=true},3200)}
+  function who(id){if(!id)return 'Alguien';if(id===me)return 'vos';return names[id]||'tu dupla'}
+  function failMsg(){toast('No se pudo guardar. Revisá tu conexión o pedí acceso de Colaborador.')}
+  async function safe(fn){try{await fn()}catch(e){console.error(e);failMsg()}}
+
+  /* ---------- render ---------- */
+  function taskCard(t,opts){
+    opts=opts||{};
+    if(ui.editingTask===t.id){
+      var d=ui.drafts['t:'+t.id];
+      return '<div class="panel"><div class="row">'+
+        '<label style="flex:0 1 160px">Día<input id="et-date-'+t.id+'" type="date" data-draft="t:'+t.id+'" data-field="date" value="'+esc(d.date)+'"></label>'+
+        '<label style="flex:3 1 240px">Tarea<input id="et-title-'+t.id+'" data-draft="t:'+t.id+'" data-field="title" value="'+esc(d.title)+'"></label></div>'+
+        '<label>Detalle (opcional)<textarea id="et-detail-'+t.id+'" rows="2" data-draft="t:'+t.id+'" data-field="detail">'+esc(d.detail)+'</textarea></label>'+
+        '<div class="row"><button class="btn" data-act="saveTask" data-id="'+t.id+'" type="button">Guardar</button>'+
+        '<button class="btn ghost" data-act="cancel" type="button">Cancelar</button></div></div>';
+    }
+    var late=!t.done&&t.date<todayStr();
+    var del=ui.confirm==='t:'+t.id;
+    return '<div class="card'+(t.done?' done':'')+(late?' late':'')+'">'+
+      '<button class="check" role="checkbox" aria-checked="'+!!t.done+'" aria-label="Marcar como hecha" data-act="toggle" data-id="'+t.id+'" type="button">✓</button>'+
+      '<div class="body"><div class="title">'+esc(t.title)+'</div>'+
+      (t.detail?'<div class="detail">'+esc(t.detail)+'</div>':'')+
+      '<div class="meta">'+
+        (opts.showDate?'<span>'+esc(longDate(t.date))+'</span>':'')+
+        (late?'<span class="chip late">Atrasada</span>':'')+
+        (t.done&&t.doneBy?'<span>Hecha por '+esc(who(t.doneBy))+'</span>':'')+
+      '</div>'+
+      (late?'<div style="margin-top:8px"><button class="btn ghost sm" data-act="toToday" data-id="'+t.id+'" type="button">Pasar a hoy</button></div>':'')+
+      '</div><div class="acts">'+
+      (del?'<button class="icon danger" data-act="delTask" data-id="'+t.id+'" type="button">¿Borrar?</button><button class="icon" data-act="cancel" type="button">No</button>'
+          :'<button class="icon" aria-label="Editar tarea" data-act="editTask" data-id="'+t.id+'" type="button">Editar</button><button class="icon" aria-label="Borrar tarea" data-act="askDelTask" data-id="'+t.id+'" type="button">✕</button>')+
+      '</div></div>';
+  }
+
+  function renderHeader(){
+    var nm=$('#subjectName');nm.innerHTML='<span class="hl">'+esc(cfg.name||'Nuestra materia')+'</span>';
+    var c=$('#countdown');
+    if(cfg.examDate){var d=diffDays(todayStr(),cfg.examDate);c.hidden=false;
+      c.innerHTML=d>=0?'<b>'+d+'</b><span>'+(d===1?'día':'días')+' para el examen</span>':'<b>—</b><span>el examen ya pasó</span>'}
+    else c.hidden=true;
+    $('#bDudas').textContent=doubts.filter(function(d){return d.status!=='resolved'}).length;
+    $('#bRes').textContent=doubts.filter(function(d){return d.status==='resolved'}).length;
+  }
+
+  function renderHoy(){
+    var t0=todayStr(),sorted=tasks.slice().sort(byOrder);
+    var today=sorted.filter(function(t){return t.date===t0});
+    var late=sorted.filter(function(t){return t.date<t0&&!t.done});
+    var done=today.filter(function(t){return t.done}).length;
+    var pct=today.length?Math.round(done/today.length*100):0;
+    var openD=doubts.filter(function(d){return d.status!=='resolved'}).length;
+    var h='<div class="hero"><div><div class="eyebrow">'+esc(longDate(t0))+'</div><h2>Lo que toca <span class="hl">hoy</span></h2></div>';
+    if(today.length){h+='<div class="bar" aria-hidden="true"><i style="width:'+pct+'%"></i></div><div class="note">'+done+' de '+today.length+' hechas</div>'}
+    h+='</div>';
+    if(late.length){h+='<div class="sect" style="margin-top:14px"><div class="sect-h"><h2>Atrasadas</h2><small>'+late.length+'</small></div>'+late.map(function(t){return taskCard(t,{showDate:true})}).join('')+'</div>'}
+    h+='<div class="sect" style="margin-top:14px">';
+    if(today.length)h+=today.map(function(t){return taskCard(t)}).join('');
+    else h+='<div class="empty"><b>Nada planificado para hoy</b>Cargá las tareas del día en la pestaña Plan.</div>';
+    h+='</div>';
+    var up={};sorted.filter(function(t){return t.date>t0&&!t.done}).forEach(function(t){(up[t.date]=up[t.date]||[]).push(t)});
+    var days=Object.keys(up).sort().slice(0,3);
+    if(days.length){h+='<div class="sect" style="margin-top:14px"><div class="sect-h"><h2>Lo que viene</h2></div><div class="panel"><ul class="next">'+
+      days.map(function(d){return '<li><span>'+esc(up[d].map(function(t){return t.title}).join(' · '))+'</span><span>'+esc(relLabel(d))+'</span></li>'}).join('')+'</ul></div></div>'}
+    if(openD)h+='<p class="note" style="margin-top:14px">Tienen <b>'+openD+'</b> '+(openD===1?'duda pendiente':'dudas pendientes')+' para el profe. <button class="linkbtn" data-act="goTab" data-id="dudas" type="button">Verlas</button></p>';
+    $('#viewHoy').innerHTML=h;
+  }
+
+  function byOrder(a,b){return a.date<b.date?-1:a.date>b.date?1:(a.createdAt||0)-(b.createdAt||0)}
+
+  function renderPlan(){
+    var t0=todayStr(),list=tasks.slice().sort(byOrder);
+    if(filter==='next')list=list.filter(function(t){return t.date>=t0||!t.done&&t.date<t0});
+    if(filter==='pending')list=list.filter(function(t){return !t.done});
+    var groups={};list.forEach(function(t){(groups[t.date]=groups[t.date]||[]).push(t)});
+    var days=Object.keys(groups).sort();
+    if(!days.length){$('#planList').innerHTML='<div class="empty"><b>El plan está vacío</b>Elegí un día arriba y escribí qué tienen que estudiar. Cada día aparece acá y en la pestaña Hoy.</div>';return}
+    $('#planList').innerHTML=days.map(function(d){
+      var g=groups[d],all=tasks.filter(function(t){return t.date===d}),dn=all.filter(function(t){return t.done}).length;
+      return '<div class="sect"><div class="sect-h"><h2>'+(d===t0?'<span class="hl">'+esc(longDate(d))+'</span>':esc(longDate(d)))+'</h2><small>'+esc(relLabel(d))+' · '+dn+'/'+all.length+' hechas</small></div>'+
+        g.map(function(t){return taskCard(t)}).join('')+'</div>'}).join('');
+  }
+
+  function doubtCard(d){
+    var resolved=d.status==='resolved';
+    if(ui.editingDoubt===d.id){var x=ui.drafts['d:'+d.id];
+      return '<div class="panel"><label>Duda<textarea id="ed-text-'+d.id+'" rows="3" data-draft="d:'+d.id+'" data-field="text">'+esc(x.text)+'</textarea></label>'+
+        '<label>Tema<input id="ed-topic-'+d.id+'" data-draft="d:'+d.id+'" data-field="topic" value="'+esc(x.topic)+'"></label>'+
+        '<div class="row"><button class="btn" data-act="saveDoubt" data-id="'+d.id+'" type="button">Guardar</button><button class="btn ghost" data-act="cancel" type="button">Cancelar</button></div></div>'}
+    var del=ui.confirm==='d:'+d.id;
+    var res='';
+    if(ui.resolving===d.id){var r=ui.drafts['r:'+d.id];
+      res='<div style="margin-top:10px"><label>Qué explicó el profe<textarea id="rs-text-'+d.id+'" rows="4" data-draft="r:'+d.id+'" data-field="explanation" placeholder="Anotá la explicación con tus palabras para acordarte después">'+esc(r.explanation)+'</textarea></label>'+
+        '<div class="row" style="margin-top:8px"><button class="btn" data-act="saveResolve" data-id="'+d.id+'" type="button">'+(resolved?'Guardar explicación':'Marcar como resuelta')+'</button><button class="btn ghost" data-act="cancel" type="button">Cancelar</button></div></div>';
+    }
+    return '<div class="card"><div class="body">'+
+      '<div class="title">'+esc(d.text)+'</div>'+
+      '<div class="meta">'+(d.topic?'<span class="chip">'+esc(d.topic)+'</span>':'')+
+        '<span>Anotada por '+esc(who(d.createdBy))+' · '+esc(shortDate(d.createdAt||Date.now()))+'</span>'+
+        (resolved?'<span class="chip ok">Resuelta '+esc(shortDate(d.resolvedAt||Date.now()))+'</span>':'')+'</div>'+
+      (resolved&&ui.resolving!==d.id?'<div class="explain"><span class="eyebrow">Explicación del profe</span>'+(d.explanation?esc(d.explanation):'<span class="note">Sin explicación anotada.</span>')+'</div>':'')+
+      res+
+      (ui.resolving===d.id?'':'<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'+
+        (resolved?'<button class="btn ghost sm" data-act="resolveOpen" data-id="'+d.id+'" type="button">Editar explicación</button><button class="btn ghost sm" data-act="reopen" data-id="'+d.id+'" type="button">Volver a dudas</button>'
+                 :'<button class="btn sm" data-act="resolveOpen" data-id="'+d.id+'" type="button">Ya se la preguntamos</button>')+'</div>')+
+      '</div><div class="acts">'+
+      (del?'<button class="icon danger" data-act="delDoubt" data-id="'+d.id+'" type="button">¿Borrar?</button><button class="icon" data-act="cancel" type="button">No</button>'
+          :'<button class="icon" aria-label="Editar duda" data-act="editDoubt" data-id="'+d.id+'" type="button">Editar</button><button class="icon" aria-label="Borrar duda" data-act="askDelDoubt" data-id="'+d.id+'" type="button">✕</button>')+
+      '</div></div>';
+  }
+
+  function renderDoubts(){
+    var l=doubts.filter(function(d){return d.status!=='resolved'}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0)});
+    $('#doubtList').innerHTML=l.length?l.map(doubtCard).join(''):'<div class="empty"><b>No hay dudas pendientes</b>Cuando algo no les quede claro, anótenlo acá y guárdenlo para la próxima consulta con el profe.</div>';
+  }
+  function renderRes(){
+    var q=search.trim().toLowerCase();
+    var l=doubts.filter(function(d){return d.status==='resolved'}).sort(function(a,b){return (b.resolvedAt||0)-(a.resolvedAt||0)});
+    if(q)l=l.filter(function(d){return (d.text+' '+(d.topic||'')+' '+(d.explanation||'')).toLowerCase().indexOf(q)>-1});
+    $('#resList').innerHTML=l.length?l.map(doubtCard).join(''):
+      (q?'<div class="empty"><b>Sin resultados</b>Probá con otra palabra.</div>':'<div class="empty"><b>Todavía no hay dudas resueltas</b>Cuando le pregunten al profe, marquen la duda como resuelta y anoten la explicación para no olvidarla.</div>');
+  }
+
+  function render(){
+    var a=document.activeElement,aid=a&&a.id,s0=a&&a.selectionStart,s1=a&&a.selectionEnd;
+    renderHeader();renderHoy();renderPlan();renderDoubts();renderRes();
+    if(aid&&/^(et|ed|rs)-/.test(aid)){var n=document.getElementById(aid);if(n){n.focus();try{n.setSelectionRange(s0,s1)}catch(e){}}}
+  }
+
+  /* ---------- tabs ---------- */
+  var views=['hoy','plan','dudas','resueltas'];
+  function setTab(t){
+    if(views.indexOf(t)<0)t='hoy';tab=t;
+    $$('.tab').forEach(function(b){b.setAttribute('aria-selected',String(b.dataset.tab===t))});
+    $$('[data-view]').forEach(function(s){s.hidden=s.dataset.view!==t});
+    if(location.hash!=='#'+t)history.replaceState(null,'','#'+t);
+  }
+  window.addEventListener('hashchange',function(){setTab(location.hash.slice(1))});
+
+  /* ---------- actions ---------- */
+  var col=function(n){return dbApi.collection(n)};
+  var find=function(list,id){return list.filter(function(x){return x.id===id})[0]};
+
+  var actions={
+    goTab:function(id){setTab(id)},
+    cancel:function(){ui.editingTask=ui.editingDoubt=ui.resolving=ui.confirm=null;render()},
+    toggle:function(id){var t=find(tasks,id);return safe(function(){return col('tasks').doc(id).update({done:!t.done,doneBy:t.done?null:me,doneAt:t.done?null:Date.now()})})},
+    toToday:function(id){return safe(function(){return col('tasks').doc(id).update({date:todayStr()})})},
+    editTask:function(id){var t=find(tasks,id);ui.drafts['t:'+id]={title:t.title,detail:t.detail||'',date:t.date};ui.editingTask=id;ui.confirm=null;render()},
+    saveTask:function(id){var d=ui.drafts['t:'+id];if(!d.title.trim()||!d.date){toast('Falta el título o el día.');return}
+      return safe(function(){return col('tasks').doc(id).update({title:d.title.trim(),detail:d.detail.trim(),date:d.date}).then(function(){ui.editingTask=null;render()})})},
+    askDelTask:function(id){ui.confirm='t:'+id;render()},
+    delTask:function(id){ui.confirm=null;return safe(function(){return col('tasks').doc(id).delete()})},
+    editDoubt:function(id){var d=find(doubts,id);ui.drafts['d:'+id]={text:d.text,topic:d.topic||''};ui.editingDoubt=id;ui.confirm=null;render()},
+    saveDoubt:function(id){var d=ui.drafts['d:'+id];if(!d.text.trim()){toast('Escribí la duda.');return}
+      return safe(function(){return col('doubts').doc(id).update({text:d.text.trim(),topic:d.topic.trim()}).then(function(){ui.editingDoubt=null;render()})})},
+    askDelDoubt:function(id){ui.confirm='d:'+id;render()},
+    delDoubt:function(id){ui.confirm=null;return safe(function(){return col('doubts').doc(id).delete()})},
+    resolveOpen:function(id){var d=find(doubts,id);ui.drafts['r:'+id]={explanation:d.explanation||''};ui.resolving=id;ui.confirm=null;render();
+      var n=document.getElementById('rs-text-'+id);if(n)n.focus()},
+    saveResolve:function(id){var d=find(doubts,id),r=ui.drafts['r:'+id];
+      var was=d.status==='resolved';
+      return safe(function(){return col('doubts').doc(id).update({status:'resolved',explanation:r.explanation.trim(),resolvedAt:was?(d.resolvedAt||Date.now()):Date.now(),resolvedBy:was?(d.resolvedBy||me):me}).then(function(){ui.resolving=null;render();toast(was?'Explicación guardada.':'Duda pasada a Resueltas.')})})},
+    reopen:function(id){return safe(function(){return col('doubts').doc(id).update({status:'open'})})}
+  };
+
+  document.addEventListener('click',function(e){
+    var b=e.target.closest('[data-act]');if(b&&actions[b.dataset.act]){if(!dbApi&&b.dataset.act!=='goTab'&&b.dataset.act!=='cancel'){failMsg();return}actions[b.dataset.act](b.dataset.id);return}
+    var t=e.target.closest('.tab');if(t){setTab(t.dataset.tab);return}
+    var f=e.target.closest('[data-filter]');if(f){filter=f.dataset.filter;$$('[data-filter]').forEach(function(p){p.setAttribute('aria-pressed',String(p===f))});renderPlan()}
+  });
+  document.addEventListener('input',function(e){
+    var el=e.target;
+    if(el.dataset&&el.dataset.draft){ui.drafts[el.dataset.draft][el.dataset.field]=el.value}
+    if(el.id==='resSearch'){search=el.value;renderRes()}
+  });
+
+  $('#cfgToggle').addEventListener('click',function(){var f=$('#cfgForm');f.hidden=!f.hidden;if(!f.hidden){$('#cfgName').value=cfg.name||'';$('#cfgExam').value=cfg.examDate||''}});
+  $('#cfgForm').addEventListener('submit',function(e){e.preventDefault();if(!dbApi){failMsg();return}
+    safe(function(){return dbApi.doc('config/materia').set({name:$('#cfgName').value.trim(),examDate:$('#cfgExam').value||''}).then(function(){$('#cfgForm').hidden=true;toast('Materia guardada.')})})});
+
+  $('#taskForm').addEventListener('submit',function(e){e.preventDefault();if(!dbApi){failMsg();return}
+    var date=$('#tDate').value,lines=$('#tLines').value.split('\n').map(function(s){return s.trim()}).filter(Boolean);
+    if(!date||!lines.length){toast('Elegí un día y escribí al menos una tarea.');return}
+    safe(async function(){
+      var base=Date.now();
+      for(var i=0;i<lines.length;i++){await col('tasks').add({title:lines[i],detail:'',date:date,done:false,createdBy:me,createdAt:base+i})}
+      $('#tLines').value='';toast(lines.length===1?'Tarea agregada.':lines.length+' tareas agregadas.')})});
+
+  $('#doubtForm').addEventListener('submit',function(e){e.preventDefault();if(!dbApi){failMsg();return}
+    var text=$('#dText').value.trim();if(!text){toast('Escribí la duda.');return}
+    safe(function(){return col('doubts').add({text:text,topic:$('#dTopic').value.trim(),status:'open',createdBy:me,createdAt:Date.now()}).then(function(){$('#dText').value='';toast('Duda guardada.')})})});
+
+  /* ---------- data ---------- */
+  var nameTimer;
+  function refreshNames(){
+    if(!userApi)return;clearTimeout(nameTimer);
+    nameTimer=setTimeout(async function(){
+      var ids={};tasks.forEach(function(t){if(t.doneBy)ids[t.doneBy]=1});
+      doubts.forEach(function(d){if(d.createdBy)ids[d.createdBy]=1;if(d.resolvedBy)ids[d.resolvedBy]=1});
+      var list=Object.keys(ids);if(!list.length)return;
+      try{var ps=await userApi.profiles(list);list.forEach(function(id){names[id]=(ps[id]&&ps[id].name)||''});render()}catch(e){}
+    },200);
+  }
+  function mapDocs(snap){return snap.docs.map(function(d){var o=Object.assign({},d.data());o.id=d.id;return o})}
+
+  async function init(){
+    $('#tDate').value=todayStr();
+    setTab(location.hash.slice(1));render();
+    try{userApi=await claude.use('user');if(userApi)me=await userApi.id()}catch(e){}
+    try{dbApi=await claude.use('db')}catch(e){}
+    if(!dbApi){$('#noDb').hidden=false;return}
+    var timer=setTimeout(function(){$('#loadNote').hidden=false},10000);
+    var ok=function(){clearTimeout(timer);$('#loadNote').hidden=true};
+    var err=function(e){console.error(e);clearTimeout(timer);toast('No se pudieron cargar los datos.')};
+    col('tasks').onSnapshot(function(s){if(!s.metadata.fromCache)ok();tasks=mapDocs(s);loaded.tasks=true;render();refreshNames()},err);
+    col('doubts').onSnapshot(function(s){if(!s.metadata.fromCache)ok();doubts=mapDocs(s);loaded.doubts=true;render();refreshNames()},err);
+    dbApi.doc('config/materia').onSnapshot(function(s){cfg=s.exists?s.data():{};render()},err);
+  }
+  init();
+})();
+</script>
