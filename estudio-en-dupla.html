@@ -93,6 +93,22 @@ textarea{resize:vertical;min-height:64px}
 .next li{display:flex;gap:8px;justify-content:space-between}
 .next{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .next span:last-child{color:var(--muted);font-size:.82rem;white-space:nowrap}
+.chip.urgent{background:var(--warn-soft);color:var(--warn)}
+.card.urgent{border-color:var(--warn)}
+.unit{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}
+.unit-top{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.steps{display:flex;gap:4px;flex-wrap:wrap}
+.step{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:3px 9px;font-size:.78rem;cursor:pointer;color:var(--muted);font-variant-numeric:tabular-nums}
+.step[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.timer{text-align:center;gap:6px;align-items:center}
+.clock{font-family:var(--display);font-size:3rem;font-variant-numeric:tabular-nums;line-height:1}
+.timer .row{justify-content:center}
+.timer .row>*{flex:0 0 auto}
+.cm{border-top:1px solid var(--line);margin-top:10px;padding-top:8px;display:flex;flex-direction:column;gap:6px}
+.cm-item{font-size:.88rem;overflow-wrap:anywhere;white-space:pre-wrap}
+.cm-item small{color:var(--muted);margin-left:6px}
+.cmrow{display:flex;gap:6px;align-items:flex-end}
+.cmrow textarea{min-height:44px}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:max(16px,env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:.88rem;max-width:90vw;z-index:20}
 [hidden]{display:none!important}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -117,6 +133,7 @@ textarea{resize:vertical;min-height:64px}
   <nav class="tabs" role="tablist" aria-label="Secciones">
     <button class="tab" role="tab" data-tab="hoy" type="button">Hoy</button>
     <button class="tab" role="tab" data-tab="plan" type="button">Plan</button>
+    <button class="tab" role="tab" data-tab="temario" type="button">Temario</button>
     <button class="tab" role="tab" data-tab="dudas" type="button">Dudas <span class="badge" id="bDudas">0</span></button>
     <button class="tab" role="tab" data-tab="resueltas" type="button">Resueltas <span class="badge off" id="bRes">0</span></button>
   </nav>
@@ -124,7 +141,34 @@ textarea{resize:vertical;min-height:64px}
   <div class="note warn" id="noDb" hidden>Para ver y guardar datos compartidos tenés que abrir esta página con tu sesión iniciada.</div>
 
   <!-- HOY -->
-  <section data-view="hoy" id="viewHoy"></section>
+  <section data-view="hoy">
+    <div id="viewHoy"></div>
+    <div class="panel timer" id="pomo" style="margin-top:18px">
+      <div class="eyebrow">Sesión de estudio</div>
+      <div class="clock" id="clock">25:00</div>
+      <div class="note" id="pomoState">Listos para arrancar</div>
+      <div class="row">
+        <button class="btn" id="pStart" type="button">Estudiar 25 min</button>
+        <button class="btn ghost" id="pStart50" type="button">Estudiar 50 min</button>
+        <button class="btn ghost" id="pBreak" type="button">Descanso 5 min</button>
+        <button class="btn ghost" id="pStop" type="button" hidden>Cancelar</button>
+      </div>
+      <div class="note" id="pomoStats"></div>
+    </div>
+  </section>
+
+  <!-- TEMARIO -->
+  <section data-view="temario" class="sect" hidden>
+    <div class="panel" id="unitSummary" hidden></div>
+    <form class="panel" id="unitForm">
+      <h2 style="font-size:1.05rem">Unidades de la materia</h2>
+      <div class="row">
+        <label style="flex:3 1 260px">Una unidad por línea<textarea id="uLines" rows="3" placeholder="Unidad 1 - Límites&#10;Unidad 2 - Derivadas"></textarea></label>
+        <button class="btn" type="submit">Agregar</button>
+      </div>
+    </form>
+    <div id="unitList" class="sect"></div>
+  </section>
 
   <!-- PLAN -->
   <section data-view="plan" class="sect" hidden>
@@ -152,6 +196,7 @@ textarea{resize:vertical;min-height:64px}
       <label>La duda<textarea id="dText" rows="3" placeholder="Ej: ¿Por qué en el ejercicio 4 se puede aplicar el teorema sin verificar la continuidad?"></textarea></label>
       <div class="row">
         <label>Tema (opcional)<input id="dTopic" maxlength="60" placeholder="Ej: Unidad 3 - Límites"></label>
+        <label style="flex:1 1 200px;flex-direction:row;align-items:center;gap:8px"><input id="dUrgent" type="checkbox" style="width:auto"> Urgente: para la próxima clase</label>
         <button class="btn" type="submit">Guardar duda</button>
       </div>
     </form>
@@ -182,9 +227,9 @@ textarea{resize:vertical;min-height:64px}
   function relLabel(s){var d=diffDays(todayStr(),s);if(d===0)return 'Hoy';if(d===1)return 'Mañana';if(d===-1)return 'Ayer';
     return d>0?'En '+d+' días':'Hace '+(-d)+' días'}
 
-  var tasks=[],doubts=[],cfg={},names={},me=null,userApi=null,dbApi=null;
+  var tasks=[],doubts=[],units=[],sessions=[],comments=[],cfg={},names={},me=null,userApi=null,dbApi=null;
   var tab='hoy',filter='next',search='';
-  var ui={editingTask:null,confirm:null,resolving:null,editingDoubt:null,drafts:{}};
+  var ui={editingTask:null,editingUnit:null,confirm:null,resolving:null,editingDoubt:null,cm:{},drafts:{}};
   var loaded={tasks:false,doubts:false};
 
   function toast(msg){var t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(function(){t.hidden=true},3200)}
@@ -239,8 +284,10 @@ textarea{resize:vertical;min-height:64px}
     var done=today.filter(function(t){return t.done}).length;
     var pct=today.length?Math.round(done/today.length*100):0;
     var openD=doubts.filter(function(d){return d.status!=='resolved'}).length;
+    var urg=doubts.filter(function(d){return d.status!=='resolved'&&d.urgent}).length;
     var h='<div class="hero"><div><div class="eyebrow">'+esc(longDate(t0))+'</div><h2>Lo que toca <span class="hl">hoy</span></h2></div>';
     if(today.length){h+='<div class="bar" aria-hidden="true"><i style="width:'+pct+'%"></i></div><div class="note">'+done+' de '+today.length+' hechas</div>'}
+    if(units.length){var ua=Math.round(units.reduce(function(a,u){return a+(u.progress||0)},0)/units.length);h+='<div class="note">Avance del temario: <b>'+ua+'%</b> <button class="linkbtn" data-act="goTab" data-id="temario" type="button">Ver</button></div>'}
     h+='</div>';
     if(late.length){h+='<div class="sect" style="margin-top:14px"><div class="sect-h"><h2>Atrasadas</h2><small>'+late.length+'</small></div>'+late.map(function(t){return taskCard(t,{showDate:true})}).join('')+'</div>'}
     h+='<div class="sect" style="margin-top:14px">';
@@ -251,8 +298,52 @@ textarea{resize:vertical;min-height:64px}
     var days=Object.keys(up).sort().slice(0,3);
     if(days.length){h+='<div class="sect" style="margin-top:14px"><div class="sect-h"><h2>Lo que viene</h2></div><div class="panel"><ul class="next">'+
       days.map(function(d){return '<li><span>'+esc(up[d].map(function(t){return t.title}).join(' · '))+'</span><span>'+esc(relLabel(d))+'</span></li>'}).join('')+'</ul></div></div>'}
-    if(openD)h+='<p class="note" style="margin-top:14px">Tienen <b>'+openD+'</b> '+(openD===1?'duda pendiente':'dudas pendientes')+' para el profe. <button class="linkbtn" data-act="goTab" data-id="dudas" type="button">Verlas</button></p>';
+    if(openD)h+='<p class="note" style="margin-top:14px">Tienen <b>'+openD+'</b> '+(openD===1?'duda pendiente':'dudas pendientes')+' para el profe'+(urg?' ('+urg+' '+(urg===1?'urgente':'urgentes')+')':'')+'. <button class="linkbtn" data-act="goTab" data-id="dudas" type="button">Verlas</button></p>';
     $('#viewHoy').innerHTML=h;
+  }
+
+  function cmBlock(d){
+    var list=comments.filter(function(c){return c.doubtId===d.id}).sort(function(a,b){return (a.createdAt||0)-(b.createdAt||0)});
+    var open=!!ui.cm[d.id];
+    var h='<div class="cm"><div><button class="linkbtn" data-act="toggleCm" data-id="'+d.id+'" type="button">'+(open?'Ocultar comentarios':'Comentarios ('+list.length+')')+'</button></div>';
+    if(open){
+      h+=list.map(function(c){return '<div class="cm-item"><b>'+esc(cap(who(c.by)))+'</b><small>'+esc(shortDate(c.createdAt||Date.now()))+'</small>'+
+        (c.by&&c.by===me?' <button class="icon" aria-label="Borrar comentario" data-act="delCm" data-id="'+c.id+'" type="button">✕</button>':'')+'<br>'+esc(c.text)+'</div>'}).join('');
+      if(!list.length)h+='<div class="note">Todavía no hay comentarios.</div>';
+      h+='<div class="cmrow"><textarea id="cm-'+d.id+'" rows="2" placeholder="Sumá una idea o una pista" data-draft="c:'+d.id+'" data-field="text">'+esc((ui.drafts['c:'+d.id]||{}).text||'')+'</textarea>'+
+        '<button class="btn sm" data-act="sendCm" data-id="'+d.id+'" type="button">Enviar</button></div>';
+    }
+    return h+'</div>';
+  }
+
+  function unitCard(u){
+    if(ui.editingUnit===u.id){var d=ui.drafts['u:'+u.id];
+      return '<div class="panel"><label>Nombre de la unidad<input id="eu-'+u.id+'" data-draft="u:'+u.id+'" data-field="name" value="'+esc(d.name)+'"></label>'+
+        '<div class="row"><button class="btn" data-act="saveUnit" data-id="'+u.id+'" type="button">Guardar</button><button class="btn ghost" data-act="cancel" type="button">Cancelar</button></div></div>'}
+    var p=u.progress||0,del=ui.confirm==='u:'+u.id;
+    var steps=[0,25,50,75,100].map(function(v){return '<button class="step" data-act="setProgress" data-id="'+u.id+'" data-val="'+v+'" aria-pressed="'+(p===v)+'" type="button">'+v+'%</button>'}).join('');
+    return '<div class="card'+(p===100?' done':'')+'"><div class="unit"><div class="unit-top"><div class="title"><b>'+esc(u.name)+'</b></div><div class="steps" role="group" aria-label="Avance">'+steps+'</div></div>'+
+      '<div class="bar" aria-hidden="true"><i style="width:'+p+'%"></i></div></div><div class="acts">'+
+      (del?'<button class="icon danger" data-act="delUnit" data-id="'+u.id+'" type="button">¿Borrar?</button><button class="icon" data-act="cancel" type="button">No</button>'
+          :'<button class="icon" data-act="editUnit" data-id="'+u.id+'" type="button">Editar</button><button class="icon" aria-label="Borrar unidad" data-act="askDelUnit" data-id="'+u.id+'" type="button">✕</button>')+'</div></div>';
+  }
+  function renderUnits(){
+    var l=units.slice().sort(function(a,b){return (a.createdAt||0)-(b.createdAt||0)});
+    var s=$('#unitSummary');
+    if(!l.length){s.hidden=true;$('#unitList').innerHTML='<div class="empty"><b>Todavía no cargaron el temario</b>Escriban las unidades de la materia, una por línea, y marquen cuánto avanzaron de cada una.</div>';return}
+    var avg=Math.round(l.reduce(function(a,u){return a+(u.progress||0)},0)/l.length),full=l.filter(function(u){return (u.progress||0)===100}).length;
+    s.hidden=false;
+    s.innerHTML='<div class="sect-h"><h2>Avance general <span class="hl">'+avg+'%</span></h2><small>'+full+' de '+l.length+' unidades al 100%</small></div><div class="bar" aria-hidden="true"><i style="width:'+avg+'%"></i></div>';
+    $('#unitList').innerHTML=l.map(unitCard).join('');
+  }
+
+  var fmtMin=function(m){return m<60?m+' min':Math.floor(m/60)+' h '+(m%60)+' min'};
+  function renderPomoStats(){
+    var el=$('#pomoStats'),t0=todayStr();
+    if(!sessions.length){el.textContent='Cada sesión de estudio terminada se suma al registro de horas.';return}
+    var sum=function(l){return l.reduce(function(a,s){return a+(s.minutes||0)},0)};
+    var today=sessions.filter(function(s){return s.date===t0});
+    el.textContent='Hoy: '+fmtMin(sum(today))+' entre los dos'+(me?' (vos '+fmtMin(sum(today.filter(function(s){return s.by===me})))+')':'')+' · Total: '+fmtMin(sum(sessions));
   }
 
   function byOrder(a,b){return a.date<b.date?-1:a.date>b.date?1:(a.createdAt||0)-(b.createdAt||0)}
@@ -282,24 +373,24 @@ textarea{resize:vertical;min-height:64px}
       res='<div style="margin-top:10px"><label>Qué explicó el profe<textarea id="rs-text-'+d.id+'" rows="4" data-draft="r:'+d.id+'" data-field="explanation" placeholder="Anotá la explicación con tus palabras para acordarte después">'+esc(r.explanation)+'</textarea></label>'+
         '<div class="row" style="margin-top:8px"><button class="btn" data-act="saveResolve" data-id="'+d.id+'" type="button">'+(resolved?'Guardar explicación':'Marcar como resuelta')+'</button><button class="btn ghost" data-act="cancel" type="button">Cancelar</button></div></div>';
     }
-    return '<div class="card"><div class="body">'+
+    return '<div class="card'+(d.urgent&&!resolved?' urgent':'')+'"><div class="body">'+
       '<div class="title">'+esc(d.text)+'</div>'+
-      '<div class="meta">'+(d.topic?'<span class="chip">'+esc(d.topic)+'</span>':'')+
+      '<div class="meta">'+(d.urgent&&!resolved?'<span class="chip urgent">Urgente</span>':'')+(d.topic?'<span class="chip">'+esc(d.topic)+'</span>':'')+
         '<span>Anotada por '+esc(who(d.createdBy))+' · '+esc(shortDate(d.createdAt||Date.now()))+'</span>'+
         (resolved?'<span class="chip ok">Resuelta '+esc(shortDate(d.resolvedAt||Date.now()))+'</span>':'')+'</div>'+
       (resolved&&ui.resolving!==d.id?'<div class="explain"><span class="eyebrow">Explicación del profe</span>'+(d.explanation?esc(d.explanation):'<span class="note">Sin explicación anotada.</span>')+'</div>':'')+
       res+
       (ui.resolving===d.id?'':'<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'+
         (resolved?'<button class="btn ghost sm" data-act="resolveOpen" data-id="'+d.id+'" type="button">Editar explicación</button><button class="btn ghost sm" data-act="reopen" data-id="'+d.id+'" type="button">Volver a dudas</button>'
-                 :'<button class="btn sm" data-act="resolveOpen" data-id="'+d.id+'" type="button">Ya se la preguntamos</button>')+'</div>')+
-      '</div><div class="acts">'+
+                 :'<button class="btn sm" data-act="resolveOpen" data-id="'+d.id+'" type="button">Ya se la preguntamos</button><button class="btn ghost sm" data-act="toggleUrgent" data-id="'+d.id+'" type="button">'+(d.urgent?'Quitar urgente':'Marcar urgente')+'</button>')+'</div>')+
+      cmBlock(d)+'</div><div class="acts">'+
       (del?'<button class="icon danger" data-act="delDoubt" data-id="'+d.id+'" type="button">¿Borrar?</button><button class="icon" data-act="cancel" type="button">No</button>'
           :'<button class="icon" aria-label="Editar duda" data-act="editDoubt" data-id="'+d.id+'" type="button">Editar</button><button class="icon" aria-label="Borrar duda" data-act="askDelDoubt" data-id="'+d.id+'" type="button">✕</button>')+
       '</div></div>';
   }
 
   function renderDoubts(){
-    var l=doubts.filter(function(d){return d.status!=='resolved'}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0)});
+    var l=doubts.filter(function(d){return d.status!=='resolved'}).sort(function(a,b){return (b.urgent?1:0)-(a.urgent?1:0)||(b.createdAt||0)-(a.createdAt||0)});
     $('#doubtList').innerHTML=l.length?l.map(doubtCard).join(''):'<div class="empty"><b>No hay dudas pendientes</b>Cuando algo no les quede claro, anótenlo acá y guárdenlo para la próxima consulta con el profe.</div>';
   }
   function renderRes(){
@@ -312,12 +403,12 @@ textarea{resize:vertical;min-height:64px}
 
   function render(){
     var a=document.activeElement,aid=a&&a.id,s0=a&&a.selectionStart,s1=a&&a.selectionEnd;
-    renderHeader();renderHoy();renderPlan();renderDoubts();renderRes();
-    if(aid&&/^(et|ed|rs)-/.test(aid)){var n=document.getElementById(aid);if(n){n.focus();try{n.setSelectionRange(s0,s1)}catch(e){}}}
+    renderHeader();renderHoy();renderPlan();renderUnits();renderDoubts();renderRes();renderPomoStats();
+    if(aid&&/^(et|ed|rs|cm|eu)-/.test(aid)){var n=document.getElementById(aid);if(n){n.focus();try{n.setSelectionRange(s0,s1)}catch(e){}}}
   }
 
   /* ---------- tabs ---------- */
-  var views=['hoy','plan','dudas','resueltas'];
+  var views=['hoy','plan','temario','dudas','resueltas'];
   function setTab(t){
     if(views.indexOf(t)<0)t='hoy';tab=t;
     $$('.tab').forEach(function(b){b.setAttribute('aria-selected',String(b.dataset.tab===t))});
@@ -332,7 +423,7 @@ textarea{resize:vertical;min-height:64px}
 
   var actions={
     goTab:function(id){setTab(id)},
-    cancel:function(){ui.editingTask=ui.editingDoubt=ui.resolving=ui.confirm=null;render()},
+    cancel:function(){ui.editingTask=ui.editingUnit=ui.editingDoubt=ui.resolving=ui.confirm=null;render()},
     toggle:function(id){var t=find(tasks,id);return safe(function(){return col('tasks').doc(id).update({done:!t.done,doneBy:t.done?null:me,doneAt:t.done?null:Date.now()})})},
     toToday:function(id){return safe(function(){return col('tasks').doc(id).update({date:todayStr()})})},
     editTask:function(id){var t=find(tasks,id);ui.drafts['t:'+id]={title:t.title,detail:t.detail||'',date:t.date};ui.editingTask=id;ui.confirm=null;render()},
@@ -344,7 +435,21 @@ textarea{resize:vertical;min-height:64px}
     saveDoubt:function(id){var d=ui.drafts['d:'+id];if(!d.text.trim()){toast('Escribí la duda.');return}
       return safe(function(){return col('doubts').doc(id).update({text:d.text.trim(),topic:d.topic.trim()}).then(function(){ui.editingDoubt=null;render()})})},
     askDelDoubt:function(id){ui.confirm='d:'+id;render()},
-    delDoubt:function(id){ui.confirm=null;return safe(function(){return col('doubts').doc(id).delete()})},
+    delDoubt:function(id){ui.confirm=null;return safe(async function(){
+      var cs=comments.filter(function(c){return c.doubtId===id});
+      for(var i=0;i<cs.length;i++){await col('comments').doc(cs[i].id).delete()}
+      await col('doubts').doc(id).delete()})},
+    toggleUrgent:function(id){var d=find(doubts,id);return safe(function(){return col('doubts').doc(id).update({urgent:!d.urgent})})},
+    toggleCm:function(id){ui.cm[id]=!ui.cm[id];render();var n=document.getElementById('cm-'+id);if(n)n.focus()},
+    sendCm:function(id){var x=(ui.drafts['c:'+id]||{}).text||'';x=x.trim();if(!x){toast('Escribí un comentario.');return}
+      return safe(function(){return col('comments').add({doubtId:id,text:x,by:me,createdAt:Date.now()}).then(function(){ui.drafts['c:'+id]={text:''};render()})})},
+    delCm:function(id){return safe(function(){return col('comments').doc(id).delete()})},
+    setProgress:function(id,b){return safe(function(){return col('units').doc(id).update({progress:Number(b.dataset.val)})})},
+    editUnit:function(id){var u=find(units,id);ui.drafts['u:'+id]={name:u.name};ui.editingUnit=id;ui.confirm=null;render()},
+    saveUnit:function(id){var d=ui.drafts['u:'+id];if(!d.name.trim()){toast('Escribí el nombre de la unidad.');return}
+      return safe(function(){return col('units').doc(id).update({name:d.name.trim()}).then(function(){ui.editingUnit=null;render()})})},
+    askDelUnit:function(id){ui.confirm='u:'+id;render()},
+    delUnit:function(id){ui.confirm=null;return safe(function(){return col('units').doc(id).delete()})},
     resolveOpen:function(id){var d=find(doubts,id);ui.drafts['r:'+id]={explanation:d.explanation||''};ui.resolving=id;ui.confirm=null;render();
       var n=document.getElementById('rs-text-'+id);if(n)n.focus()},
     saveResolve:function(id){var d=find(doubts,id),r=ui.drafts['r:'+id];
@@ -354,13 +459,13 @@ textarea{resize:vertical;min-height:64px}
   };
 
   document.addEventListener('click',function(e){
-    var b=e.target.closest('[data-act]');if(b&&actions[b.dataset.act]){if(!dbApi&&b.dataset.act!=='goTab'&&b.dataset.act!=='cancel'){failMsg();return}actions[b.dataset.act](b.dataset.id);return}
+    var b=e.target.closest('[data-act]');if(b&&actions[b.dataset.act]){if(!dbApi&&b.dataset.act!=='goTab'&&b.dataset.act!=='cancel'){failMsg();return}actions[b.dataset.act](b.dataset.id,b);return}
     var t=e.target.closest('.tab');if(t){setTab(t.dataset.tab);return}
     var f=e.target.closest('[data-filter]');if(f){filter=f.dataset.filter;$$('[data-filter]').forEach(function(p){p.setAttribute('aria-pressed',String(p===f))});renderPlan()}
   });
   document.addEventListener('input',function(e){
     var el=e.target;
-    if(el.dataset&&el.dataset.draft){ui.drafts[el.dataset.draft][el.dataset.field]=el.value}
+    if(el.dataset&&el.dataset.draft){var k=el.dataset.draft;ui.drafts[k]=ui.drafts[k]||{};ui.drafts[k][el.dataset.field]=el.value}
     if(el.id==='resSearch'){search=el.value;renderRes()}
   });
 
@@ -378,7 +483,48 @@ textarea{resize:vertical;min-height:64px}
 
   $('#doubtForm').addEventListener('submit',function(e){e.preventDefault();if(!dbApi){failMsg();return}
     var text=$('#dText').value.trim();if(!text){toast('Escribí la duda.');return}
-    safe(function(){return col('doubts').add({text:text,topic:$('#dTopic').value.trim(),status:'open',createdBy:me,createdAt:Date.now()}).then(function(){$('#dText').value='';toast('Duda guardada.')})})});
+    safe(function(){return col('doubts').add({text:text,topic:$('#dTopic').value.trim(),urgent:$('#dUrgent').checked,status:'open',createdBy:me,createdAt:Date.now()}).then(function(){$('#dText').value='';$('#dUrgent').checked=false;toast('Duda guardada.')})})});
+
+  $('#unitForm').addEventListener('submit',function(e){e.preventDefault();if(!dbApi){failMsg();return}
+    var lines=$('#uLines').value.split('\n').map(function(s){return s.trim()}).filter(Boolean);
+    if(!lines.length){toast('Escribí al menos una unidad.');return}
+    safe(async function(){var base=Date.now();
+      for(var i=0;i<lines.length;i++){await col('units').add({name:lines[i],progress:0,createdBy:me,createdAt:base+i})}
+      $('#uLines').value='';toast(lines.length===1?'Unidad agregada.':lines.length+' unidades agregadas.')})});
+
+  /* ---------- pomodoro (el reloj es de cada persona; las sesiones terminadas se comparten) ---------- */
+  var pomo={end:0,mins:0,kind:null},pomoTimer=null;
+  var fmtClock=function(ms){var s=Math.max(0,Math.ceil(ms/1000));return pad(Math.floor(s/60))+':'+pad(s%60)};
+  function beep(){try{var C=window.AudioContext||window.webkitAudioContext,c=new C(),o=c.createOscillator(),g=c.createGain();
+    o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=.15;o.start();o.stop(c.currentTime+.5)}catch(e){}}
+  function pomoUI(){
+    var run=!!pomo.kind;
+    $('#pStart').hidden=run;$('#pStart50').hidden=run;$('#pBreak').hidden=run;$('#pStop').hidden=!run;
+    $('#pomoState').textContent=run?(pomo.kind==='focus'?'Estudiando, sin distracciones':'Descanso'):'Listos para arrancar';
+    if(!run)$('#clock').textContent='25:00';
+  }
+  function pomoTick(){var left=pomo.end-Date.now();if(left<=0){pomoFinish();return}$('#clock').textContent=fmtClock(left)}
+  function pomoStart(kind,mins){
+    pomo={end:Date.now()+mins*60000,mins:mins,kind:kind};
+    try{localStorage.setItem('pomo',JSON.stringify(pomo))}catch(e){}
+    clearInterval(pomoTimer);pomoTimer=setInterval(pomoTick,500);pomoUI();pomoTick();
+  }
+  function pomoClear(){clearInterval(pomoTimer);pomo={end:0,mins:0,kind:null};try{localStorage.removeItem('pomo')}catch(e){}pomoUI()}
+  function pomoFinish(){
+    var k=pomo.kind,m=pomo.mins;pomoClear();beep();
+    if(k==='focus'){
+      if(dbApi)safe(function(){return col('sessions').add({minutes:m,by:me,at:Date.now(),date:todayStr()}).then(function(){toast('Sesión de '+m+' min registrada. Buen trabajo.')})});
+      else toast('Terminó la sesión de estudio.');
+    }else toast('Terminó el descanso.');
+  }
+  function pomoInit(){
+    $('#pStart').addEventListener('click',function(){pomoStart('focus',25)});
+    $('#pStart50').addEventListener('click',function(){pomoStart('focus',50)});
+    $('#pBreak').addEventListener('click',function(){pomoStart('break',5)});
+    $('#pStop').addEventListener('click',pomoClear);
+    try{var s=JSON.parse(localStorage.getItem('pomo')||'null');if(s&&s.kind&&s.end>Date.now()){pomo=s;pomoTimer=setInterval(pomoTick,500)}}catch(e){}
+    pomoUI();if(pomo.kind)pomoTick();
+  }
 
   /* ---------- data ---------- */
   var nameTimer;
@@ -387,6 +533,7 @@ textarea{resize:vertical;min-height:64px}
     nameTimer=setTimeout(async function(){
       var ids={};tasks.forEach(function(t){if(t.doneBy)ids[t.doneBy]=1});
       doubts.forEach(function(d){if(d.createdBy)ids[d.createdBy]=1;if(d.resolvedBy)ids[d.resolvedBy]=1});
+      comments.forEach(function(c){if(c.by)ids[c.by]=1});
       var list=Object.keys(ids);if(!list.length)return;
       try{var ps=await userApi.profiles(list);list.forEach(function(id){names[id]=(ps[id]&&ps[id].name)||''});render()}catch(e){}
     },200);
@@ -394,7 +541,7 @@ textarea{resize:vertical;min-height:64px}
   function mapDocs(snap){return snap.docs.map(function(d){var o=Object.assign({},d.data());o.id=d.id;return o})}
 
   async function init(){
-    $('#tDate').value=todayStr();
+    $('#tDate').value=todayStr();pomoInit();
     setTab(location.hash.slice(1));render();
     try{userApi=await claude.use('user');if(userApi)me=await userApi.id()}catch(e){}
     try{dbApi=await claude.use('db')}catch(e){}
@@ -404,6 +551,9 @@ textarea{resize:vertical;min-height:64px}
     var err=function(e){console.error(e);clearTimeout(timer);toast('No se pudieron cargar los datos.')};
     col('tasks').onSnapshot(function(s){if(!s.metadata.fromCache)ok();tasks=mapDocs(s);loaded.tasks=true;render();refreshNames()},err);
     col('doubts').onSnapshot(function(s){if(!s.metadata.fromCache)ok();doubts=mapDocs(s);loaded.doubts=true;render();refreshNames()},err);
+    col('units').onSnapshot(function(s){units=mapDocs(s);render()},err);
+    col('sessions').onSnapshot(function(s){sessions=mapDocs(s);render()},err);
+    col('comments').onSnapshot(function(s){comments=mapDocs(s);render();refreshNames()},err);
     dbApi.doc('config/materia').onSnapshot(function(s){cfg=s.exists?s.data():{};render()},err);
   }
   init();
