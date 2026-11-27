@@ -484,6 +484,10 @@ textarea{resize:vertical;min-height:64px}
     sendCm:function(id){var x=(ui.drafts['c:'+id]||{}).text||'';x=x.trim();if(!x){toast('Escribí un comentario.');return}
       return safe(function(){return col('comments').add({doubtId:id,text:x,by:me,createdAt:Date.now()}).then(function(){ui.drafts['c:'+id]={text:''};render()})})},
     delCm:function(id){return safe(function(){return col('comments').doc(id).delete()})},
+    pkSet:function(id,b){var c=b.closest('.pks'),on=b.dataset.val==='1';
+      $$('input[type=checkbox]',c).forEach(function(x){x.checked=on});
+      var f=$('input[data-pk]',c);
+      if(f){var pk=f.dataset.pk;ui.drafts[pk]=ui.drafts[pk]||{};ui.drafts[pk].unitIds=checkedIn(c)}},
     editUnit:function(id){var u=find(units,id);ui.drafts['u:'+id]={name:u.name};ui.editingUnit=id;ui.confirm=null;render()},
     saveUnit:function(id){var d=ui.drafts['u:'+id];if(!d.name.trim()){toast('Escribí el nombre de la unidad.');return}
       return safe(function(){return col('units').doc(id).update({name:d.name.trim()}).then(function(){ui.editingUnit=null;render()})})},
