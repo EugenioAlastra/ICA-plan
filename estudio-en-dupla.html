@@ -258,7 +258,8 @@ textarea{resize:vertical;min-height:64px}
   function unitPicker(sel,pk){
     sel=sel||[];
     if(!units.length)return '<span class="note">Primero cargá las unidades en la pestaña Temario.</span>';
-    return units.slice().sort(byCreated).map(function(u){return '<label class="pk"><input type="checkbox"'+(pk?' data-pk="'+esc(pk)+'"':'')+' value="'+esc(u.id)+'"'+(sel.indexOf(u.id)>-1?' checked':'')+'> '+esc(u.name)+'</label>'}).join('');
+    return '<span style="align-self:center;display:flex;gap:10px"><button class="linkbtn" data-act="pkSet" data-val="1" type="button">Marcar todas</button><button class="linkbtn" data-act="pkSet" data-val="0" type="button">Ninguna</button></span>'+
+      units.slice().sort(byCreated).map(function(u){return '<label class="pk"><input type="checkbox"'+(pk?' data-pk="'+esc(pk)+'"':'')+' value="'+esc(u.id)+'"'+(sel.indexOf(u.id)>-1?' checked':'')+'> '+esc(u.name)+'</label>'}).join('');
   }
   function syncUnitSelect(){
     var s=$('#tUnits');if(!s)return;
