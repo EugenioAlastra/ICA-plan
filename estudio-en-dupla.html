@@ -100,6 +100,9 @@ textarea{resize:vertical;min-height:64px}
 .pcell{display:flex;justify-content:center;padding-top:1px}
 .pcell.on .check{background:var(--ok);border-color:var(--ok);color:#fff}
 .tacts{display:flex;gap:2px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.pks{display:flex;flex-wrap:wrap;gap:6px}
+.pk{flex-direction:row;align-items:center;gap:6px;font-weight:500;color:var(--ink);background:var(--soft);border-radius:99px;padding:3px 10px;font-size:.82rem;cursor:pointer}
+.pk input{width:auto}
 .chip.urgent{background:var(--warn-soft);color:var(--warn)}
 .card.urgent{border-color:var(--warn)}
 .unit{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}
@@ -183,11 +186,11 @@ textarea{resize:vertical;min-height:64px}
       <h2 style="font-size:1.05rem" id="taskFormTitle">Agregar tareas al plan</h2>
       <div class="row">
         <label style="flex:0 1 170px">Día<input id="tDate" type="date" required></label>
-        <label style="flex:1 1 180px">Unidad (opcional)<select id="tUnit"></select></label>
         <label style="flex:3 1 260px">Qué hay que hacer (una tarea por línea)
           <textarea id="tLines" rows="3" placeholder="Leer capítulo 3&#10;Resolver ejercicios 1 al 10 de la guía"></textarea></label>
         <button class="btn" type="submit">Agregar</button>
       </div>
+    <div><div class="note" style="font-weight:600;margin-bottom:6px">Unidades (opcional, podés elegir varias)</div><div class="pks" id="tUnits"></div></div>
     </form>
     <div class="filters" role="group" aria-label="Filtro del plan">
       <button class="pill" type="button" data-filter="next" aria-pressed="true">Desde hoy</button>
@@ -250,17 +253,21 @@ textarea{resize:vertical;min-height:64px}
   function isDone(t,p){var v=t['done'+cap(p)];return v===undefined?t.done===true:v===true}
   function fullDone(t){return isDone(t,'bian')&&isDone(t,'euge')}
   function colHead(){return '<div class="colhead" aria-hidden="true"><span>Bian</span><span></span><span>Euge</span></div>'}
-  function unitOptions(sel){
-    return '<option value="">Sin unidad</option>'+units.slice().sort(byCreated).map(function(u){return '<option value="'+esc(u.id)+'"'+(u.id===sel?' selected':'')+'>'+esc(u.name)+'</option>'}).join('');
+  function taskUnitIds(t){return Array.isArray(t.unitIds)?t.unitIds:(t.unitId?[t.unitId]:[])}
+  function checkedIn(c){return $$('input:checked',c).map(function(x){return x.value})}
+  function unitPicker(sel,pk){
+    sel=sel||[];
+    if(!units.length)return '<span class="note">Primero cargá las unidades en la pestaña Temario.</span>';
+    return units.slice().sort(byCreated).map(function(u){return '<label class="pk"><input type="checkbox"'+(pk?' data-pk="'+esc(pk)+'"':'')+' value="'+esc(u.id)+'"'+(sel.indexOf(u.id)>-1?' checked':'')+'> '+esc(u.name)+'</label>'}).join('');
   }
   function syncUnitSelect(){
-    var s=$('#tUnit');if(!s)return;
+    var s=$('#tUnits');if(!s)return;
     var sig=units.map(function(u){return u.id+u.name}).join('|');
     if(s.dataset.sig===sig)return;
-    var v=s.value;s.innerHTML=unitOptions(v);s.dataset.sig=sig;
+    var sel=checkedIn(s);s.innerHTML=unitPicker(sel);s.dataset.sig=sig;
   }
   function unitStats(uid){
-    var ts=tasks.filter(function(t){return t.unitId===uid}),n=ts.length;
+    var ts=tasks.filter(function(t){return taskUnitIds(t).indexOf(uid)>-1}),n=ts.length;
     var b=ts.filter(function(t){return isDone(t,'bian')}).length,e=ts.filter(function(t){return isDone(t,'euge')}).length;
     return {n:n,b:b,e:e,p:n?Math.round((b+e)/(2*n)*100):0};
   }
@@ -273,14 +280,14 @@ textarea{resize:vertical;min-height:64px}
       return '<div class="panel"><div class="row">'+
         '<label style="flex:0 1 160px">Día<input id="et-date-'+t.id+'" type="date" data-draft="t:'+t.id+'" data-field="date" value="'+esc(d.date)+'"></label>'+
         '<label style="flex:3 1 240px">Tarea<input id="et-title-'+t.id+'" data-draft="t:'+t.id+'" data-field="title" value="'+esc(d.title)+'"></label></div>'+
-        '<label>Unidad<select id="et-unit-'+t.id+'" data-draft="t:'+t.id+'" data-field="unitId">'+unitOptions(d.unitId)+'</select></label>'+
+        '<div><div class="note" style="font-weight:600;margin-bottom:6px">Unidades</div><div class="pks">'+unitPicker(d.unitIds,'t:'+t.id)+'</div></div>'+
         '<label>Detalle (opcional)<textarea id="et-detail-'+t.id+'" rows="2" data-draft="t:'+t.id+'" data-field="detail">'+esc(d.detail)+'</textarea></label>'+
         '<div class="row"><button class="btn" data-act="saveTask" data-id="'+t.id+'" type="button">Guardar</button>'+
         '<button class="btn ghost" data-act="cancel" type="button">Cancelar</button></div></div>';
     }
     var full=fullDone(t),late=!full&&t.date<todayStr();
     var del=ui.confirm==='t:'+t.id;
-    var un=t.unitId?find(units,t.unitId):null;
+    var uns=taskUnitIds(t).map(function(i){return find(units,i)}).filter(Boolean);
     var chk=function(p,name){var on=isDone(t,p);
       return '<div class="pcell'+(on?' on':'')+'"><button class="check" role="checkbox" aria-checked="'+on+'" aria-label="'+name+(on?' hizo la tarea (tocar para desmarcar)':' todavía no la hizo (tocar para marcar)')+'" data-act="toggle" data-id="'+t.id+'" data-p="'+p+'" type="button">✓</button></div>'};
     return '<div class="trow'+(full?' done':'')+(late?' late':'')+'">'+chk('bian','Bian')+
@@ -288,7 +295,7 @@ textarea{resize:vertical;min-height:64px}
       (t.detail?'<div class="detail">'+esc(t.detail)+'</div>':'')+
       '<div class="meta">'+
         (opts.showDate?'<span>'+esc(longDate(t.date))+'</span>':'')+
-        (un?'<span class="chip">'+esc(un.name)+'</span>':'')+
+        uns.map(function(u){return '<span class="chip">'+esc(u.name)+'</span>'}).join('')+
         (late?'<span class="chip late">Atrasada</span>':'')+
       '</div><div class="tacts">'+
       (late&&!del?'<button class="btn ghost sm" data-act="toToday" data-id="'+t.id+'" type="button">Pasar a hoy</button>':'')+
@@ -459,9 +466,9 @@ textarea{resize:vertical;min-height:64px}
       if(t['done'+cap(o)]===undefined)u['done'+cap(o)]=isDone(t,o);
       return safe(function(){return col('tasks').doc(id).update(u)})},
     toToday:function(id){return safe(function(){return col('tasks').doc(id).update({date:todayStr()})})},
-    editTask:function(id){var t=find(tasks,id);ui.drafts['t:'+id]={title:t.title,detail:t.detail||'',date:t.date,unitId:t.unitId||''};ui.editingTask=id;ui.confirm=null;render()},
+    editTask:function(id){var t=find(tasks,id);ui.drafts['t:'+id]={title:t.title,detail:t.detail||'',date:t.date,unitIds:taskUnitIds(t).slice()};ui.editingTask=id;ui.confirm=null;render()},
     saveTask:function(id){var d=ui.drafts['t:'+id];if(!d.title.trim()||!d.date){toast('Falta el título o el día.');return}
-      return safe(function(){return col('tasks').doc(id).update({title:d.title.trim(),detail:d.detail.trim(),date:d.date,unitId:d.unitId||''}).then(function(){ui.editingTask=null;render()})})},
+      return safe(function(){return col('tasks').doc(id).update({title:d.title.trim(),detail:d.detail.trim(),date:d.date,unitIds:d.unitIds||[],unitId:''}).then(function(){ui.editingTask=null;render()})})},
     askDelTask:function(id){ui.confirm='t:'+id;render()},
     delTask:function(id){ui.confirm=null;return safe(function(){return col('tasks').doc(id).delete()})},
     editDoubt:function(id){var d=find(doubts,id);ui.drafts['d:'+id]={text:d.text,topic:d.topic||''};ui.editingDoubt=id;ui.confirm=null;render()},
@@ -482,8 +489,8 @@ textarea{resize:vertical;min-height:64px}
       return safe(function(){return col('units').doc(id).update({name:d.name.trim()}).then(function(){ui.editingUnit=null;render()})})},
     askDelUnit:function(id){ui.confirm='u:'+id;render()},
     delUnit:function(id){ui.confirm=null;return safe(async function(){
-      var ts=tasks.filter(function(t){return t.unitId===id});
-      for(var i=0;i<ts.length;i++){await col('tasks').doc(ts[i].id).update({unitId:''})}
+      var ts=tasks.filter(function(t){return taskUnitIds(t).indexOf(id)>-1});
+      for(var i=0;i<ts.length;i++){await col('tasks').doc(ts[i].id).update({unitIds:taskUnitIds(ts[i]).filter(function(x){return x!==id}),unitId:''})}
       await col('units').doc(id).delete()})},
     resolveOpen:function(id){var d=find(doubts,id);ui.drafts['r:'+id]={explanation:d.explanation||''};ui.resolving=id;ui.confirm=null;render();
       var n=document.getElementById('rs-text-'+id);if(n)n.focus()},
@@ -500,6 +507,7 @@ textarea{resize:vertical;min-height:64px}
   });
   document.addEventListener('input',function(e){
     var el=e.target;
+    if(el.dataset&&el.dataset.pk){var pk=el.dataset.pk;ui.drafts[pk]=ui.drafts[pk]||{};ui.drafts[pk].unitIds=$$('input[data-pk="'+pk+'"]:checked').map(function(x){return x.value})}
     if(el.dataset&&el.dataset.draft){var k=el.dataset.draft;ui.drafts[k]=ui.drafts[k]||{};ui.drafts[k][el.dataset.field]=el.value}
     if(el.id==='resSearch'){search=el.value;renderRes()}
   });
@@ -513,7 +521,7 @@ textarea{resize:vertical;min-height:64px}
     if(!date||!lines.length){toast('Elegí un día y escribí al menos una tarea.');return}
     safe(async function(){
       var base=Date.now();
-      for(var i=0;i<lines.length;i++){await col('tasks').add({title:lines[i],detail:'',date:date,unitId:$('#tUnit').value||'',doneBian:false,doneEuge:false,createdBy:me,createdAt:base+i})}
+      for(var i=0;i<lines.length;i++){await col('tasks').add({title:lines[i],detail:'',date:date,unitIds:checkedIn($('#tUnits')),doneBian:false,doneEuge:false,createdBy:me,createdAt:base+i})}
       $('#tLines').value='';toast(lines.length===1?'Tarea agregada.':lines.length+' tareas agregadas.')})});
 
   $('#doubtForm').addEventListener('submit',function(e){e.preventDefault();if(!dbApi){failMsg();return}
