@@ -1,4 +1,4 @@
-<title>Estudio en Dupla</title>
+<title>ICA - plan</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 /* Layout: una columna angosta tipo cuaderno. Encabezado con materia y cuenta regresiva, pestañas, y listas por día. El resaltador amarillo marca "hoy". */
@@ -46,7 +46,7 @@ button,input,textarea{font:inherit;color:inherit}
 /* forms */
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
 label{font-size:.8rem;font-weight:600;color:var(--muted);display:flex;flex-direction:column;gap:4px}
-input,textarea{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%}
+input,textarea,select{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%}
 textarea{resize:vertical;min-height:64px}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
 .row>*{flex:1 1 160px;min-width:0}
@@ -93,6 +93,13 @@ textarea{resize:vertical;min-height:64px}
 .next li{display:flex;gap:8px;justify-content:space-between}
 .next{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .next span:last-child{color:var(--muted);font-size:.82rem;white-space:nowrap}
+.trow{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:10px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 10px}
+.trow.late{border-color:var(--warn)}
+.colhead{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:10px;padding:0 10px;font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.colhead span{text-align:center}
+.pcell{display:flex;justify-content:center;padding-top:1px}
+.pcell.on .check{background:var(--ok);border-color:var(--ok);color:#fff}
+.tacts{display:flex;gap:2px;flex-wrap:wrap;align-items:center;margin-top:6px}
 .chip.urgent{background:var(--warn-soft);color:var(--warn)}
 .card.urgent{border-color:var(--warn)}
 .unit{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}
@@ -176,6 +183,7 @@ textarea{resize:vertical;min-height:64px}
       <h2 style="font-size:1.05rem" id="taskFormTitle">Agregar tareas al plan</h2>
       <div class="row">
         <label style="flex:0 1 170px">Día<input id="tDate" type="date" required></label>
+        <label style="flex:1 1 180px">Unidad (opcional)<select id="tUnit"></select></label>
         <label style="flex:3 1 260px">Qué hay que hacer (una tarea por línea)
           <textarea id="tLines" rows="3" placeholder="Leer capítulo 3&#10;Resolver ejercicios 1 al 10 de la guía"></textarea></label>
         <button class="btn" type="submit">Agregar</button>
@@ -238,6 +246,26 @@ textarea{resize:vertical;min-height:64px}
   async function safe(fn){try{await fn()}catch(e){console.error(e);failMsg()}}
 
   /* ---------- render ---------- */
+  var byCreated=function(a,b){return (a.createdAt||0)-(b.createdAt||0)};
+  function isDone(t,p){var v=t['done'+cap(p)];return v===undefined?t.done===true:v===true}
+  function fullDone(t){return isDone(t,'bian')&&isDone(t,'euge')}
+  function colHead(){return '<div class="colhead" aria-hidden="true"><span>Bian</span><span></span><span>Euge</span></div>'}
+  function unitOptions(sel){
+    return '<option value="">Sin unidad</option>'+units.slice().sort(byCreated).map(function(u){return '<option value="'+esc(u.id)+'"'+(u.id===sel?' selected':'')+'>'+esc(u.name)+'</option>'}).join('');
+  }
+  function syncUnitSelect(){
+    var s=$('#tUnit');if(!s)return;
+    var sig=units.map(function(u){return u.id+u.name}).join('|');
+    if(s.dataset.sig===sig)return;
+    var v=s.value;s.innerHTML=unitOptions(v);s.dataset.sig=sig;
+  }
+  function unitStats(uid){
+    var ts=tasks.filter(function(t){return t.unitId===uid}),n=ts.length;
+    var b=ts.filter(function(t){return isDone(t,'bian')}).length,e=ts.filter(function(t){return isDone(t,'euge')}).length;
+    return {n:n,b:b,e:e,p:n?Math.round((b+e)/(2*n)*100):0};
+  }
+  function overall(){return units.length?Math.round(units.reduce(function(a,u){return a+unitStats(u.id).p},0)/units.length):0}
+
   function taskCard(t,opts){
     opts=opts||{};
     if(ui.editingTask===t.id){
@@ -245,26 +273,28 @@ textarea{resize:vertical;min-height:64px}
       return '<div class="panel"><div class="row">'+
         '<label style="flex:0 1 160px">Día<input id="et-date-'+t.id+'" type="date" data-draft="t:'+t.id+'" data-field="date" value="'+esc(d.date)+'"></label>'+
         '<label style="flex:3 1 240px">Tarea<input id="et-title-'+t.id+'" data-draft="t:'+t.id+'" data-field="title" value="'+esc(d.title)+'"></label></div>'+
+        '<label>Unidad<select id="et-unit-'+t.id+'" data-draft="t:'+t.id+'" data-field="unitId">'+unitOptions(d.unitId)+'</select></label>'+
         '<label>Detalle (opcional)<textarea id="et-detail-'+t.id+'" rows="2" data-draft="t:'+t.id+'" data-field="detail">'+esc(d.detail)+'</textarea></label>'+
         '<div class="row"><button class="btn" data-act="saveTask" data-id="'+t.id+'" type="button">Guardar</button>'+
         '<button class="btn ghost" data-act="cancel" type="button">Cancelar</button></div></div>';
     }
-    var late=!t.done&&t.date<todayStr();
+    var full=fullDone(t),late=!full&&t.date<todayStr();
     var del=ui.confirm==='t:'+t.id;
-    return '<div class="card'+(t.done?' done':'')+(late?' late':'')+'">'+
-      '<button class="check" role="checkbox" aria-checked="'+!!t.done+'" aria-label="Marcar como hecha" data-act="toggle" data-id="'+t.id+'" type="button">✓</button>'+
+    var un=t.unitId?find(units,t.unitId):null;
+    var chk=function(p,name){var on=isDone(t,p);
+      return '<div class="pcell'+(on?' on':'')+'"><button class="check" role="checkbox" aria-checked="'+on+'" aria-label="'+name+(on?' hizo la tarea (tocar para desmarcar)':' todavía no la hizo (tocar para marcar)')+'" data-act="toggle" data-id="'+t.id+'" data-p="'+p+'" type="button">✓</button></div>'};
+    return '<div class="trow'+(full?' done':'')+(late?' late':'')+'">'+chk('bian','Bian')+
       '<div class="body"><div class="title">'+esc(t.title)+'</div>'+
       (t.detail?'<div class="detail">'+esc(t.detail)+'</div>':'')+
       '<div class="meta">'+
         (opts.showDate?'<span>'+esc(longDate(t.date))+'</span>':'')+
+        (un?'<span class="chip">'+esc(un.name)+'</span>':'')+
         (late?'<span class="chip late">Atrasada</span>':'')+
-        (t.done&&t.doneBy?'<span>Hecha por '+esc(who(t.doneBy))+'</span>':'')+
-      '</div>'+
-      (late?'<div style="margin-top:8px"><button class="btn ghost sm" data-act="toToday" data-id="'+t.id+'" type="button">Pasar a hoy</button></div>':'')+
-      '</div><div class="acts">'+
+      '</div><div class="tacts">'+
+      (late&&!del?'<button class="btn ghost sm" data-act="toToday" data-id="'+t.id+'" type="button">Pasar a hoy</button>':'')+
       (del?'<button class="icon danger" data-act="delTask" data-id="'+t.id+'" type="button">¿Borrar?</button><button class="icon" data-act="cancel" type="button">No</button>'
           :'<button class="icon" aria-label="Editar tarea" data-act="editTask" data-id="'+t.id+'" type="button">Editar</button><button class="icon" aria-label="Borrar tarea" data-act="askDelTask" data-id="'+t.id+'" type="button">✕</button>')+
-      '</div></div>';
+      '</div></div>'+chk('euge','Euge')+'</div>';
   }
 
   function renderHeader(){
@@ -280,21 +310,21 @@ textarea{resize:vertical;min-height:64px}
   function renderHoy(){
     var t0=todayStr(),sorted=tasks.slice().sort(byOrder);
     var today=sorted.filter(function(t){return t.date===t0});
-    var late=sorted.filter(function(t){return t.date<t0&&!t.done});
-    var done=today.filter(function(t){return t.done}).length;
-    var pct=today.length?Math.round(done/today.length*100):0;
+    var late=sorted.filter(function(t){return t.date<t0&&!fullDone(t)});
+    var nb=today.filter(function(t){return isDone(t,'bian')}).length,ne=today.filter(function(t){return isDone(t,'euge')}).length;
+    var pct=today.length?Math.round((nb+ne)/(2*today.length)*100):0;
     var openD=doubts.filter(function(d){return d.status!=='resolved'}).length;
     var urg=doubts.filter(function(d){return d.status!=='resolved'&&d.urgent}).length;
     var h='<div class="hero"><div><div class="eyebrow">'+esc(longDate(t0))+'</div><h2>Lo que toca <span class="hl">hoy</span></h2></div>';
-    if(today.length){h+='<div class="bar" aria-hidden="true"><i style="width:'+pct+'%"></i></div><div class="note">'+done+' de '+today.length+' hechas</div>'}
-    if(units.length){var ua=Math.round(units.reduce(function(a,u){return a+(u.progress||0)},0)/units.length);h+='<div class="note">Avance del temario: <b>'+ua+'%</b> <button class="linkbtn" data-act="goTab" data-id="temario" type="button">Ver</button></div>'}
+    if(today.length){h+='<div class="bar" aria-hidden="true"><i style="width:'+pct+'%"></i></div><div class="note">Bian '+nb+'/'+today.length+' · Euge '+ne+'/'+today.length+' tareas hechas</div>'}
+    if(units.length){var ua=overall();h+='<div class="note">Avance del temario: <b>'+ua+'%</b> <button class="linkbtn" data-act="goTab" data-id="temario" type="button">Ver</button></div>'}
     h+='</div>';
-    if(late.length){h+='<div class="sect" style="margin-top:14px"><div class="sect-h"><h2>Atrasadas</h2><small>'+late.length+'</small></div>'+late.map(function(t){return taskCard(t,{showDate:true})}).join('')+'</div>'}
+    if(late.length){h+='<div class="sect" style="margin-top:14px"><div class="sect-h"><h2>Atrasadas</h2><small>'+late.length+'</small></div>'+colHead()+late.map(function(t){return taskCard(t,{showDate:true})}).join('')+'</div>'}
     h+='<div class="sect" style="margin-top:14px">';
-    if(today.length)h+=today.map(function(t){return taskCard(t)}).join('');
+    if(today.length)h+=colHead()+today.map(function(t){return taskCard(t)}).join('');
     else h+='<div class="empty"><b>Nada planificado para hoy</b>Cargá las tareas del día en la pestaña Plan.</div>';
     h+='</div>';
-    var up={};sorted.filter(function(t){return t.date>t0&&!t.done}).forEach(function(t){(up[t.date]=up[t.date]||[]).push(t)});
+    var up={};sorted.filter(function(t){return t.date>t0&&!fullDone(t)}).forEach(function(t){(up[t.date]=up[t.date]||[]).push(t)});
     var days=Object.keys(up).sort().slice(0,3);
     if(days.length){h+='<div class="sect" style="margin-top:14px"><div class="sect-h"><h2>Lo que viene</h2></div><div class="panel"><ul class="next">'+
       days.map(function(d){return '<li><span>'+esc(up[d].map(function(t){return t.title}).join(' · '))+'</span><span>'+esc(relLabel(d))+'</span></li>'}).join('')+'</ul></div></div>'}
@@ -320,18 +350,18 @@ textarea{resize:vertical;min-height:64px}
     if(ui.editingUnit===u.id){var d=ui.drafts['u:'+u.id];
       return '<div class="panel"><label>Nombre de la unidad<input id="eu-'+u.id+'" data-draft="u:'+u.id+'" data-field="name" value="'+esc(d.name)+'"></label>'+
         '<div class="row"><button class="btn" data-act="saveUnit" data-id="'+u.id+'" type="button">Guardar</button><button class="btn ghost" data-act="cancel" type="button">Cancelar</button></div></div>'}
-    var p=u.progress||0,del=ui.confirm==='u:'+u.id;
-    var steps=[0,25,50,75,100].map(function(v){return '<button class="step" data-act="setProgress" data-id="'+u.id+'" data-val="'+v+'" aria-pressed="'+(p===v)+'" type="button">'+v+'%</button>'}).join('');
-    return '<div class="card'+(p===100?' done':'')+'"><div class="unit"><div class="unit-top"><div class="title"><b>'+esc(u.name)+'</b></div><div class="steps" role="group" aria-label="Avance">'+steps+'</div></div>'+
-      '<div class="bar" aria-hidden="true"><i style="width:'+p+'%"></i></div></div><div class="acts">'+
+    var s=unitStats(u.id),p=s.p,del=ui.confirm==='u:'+u.id;
+    var info=s.n?'Bian '+s.b+'/'+s.n+' · Euge '+s.e+'/'+s.n+' tareas hechas':'Sin tareas vinculadas. Elegí esta unidad al agregar tareas en Plan.';
+    return '<div class="card"><div class="unit"><div class="unit-top"><div class="title"><b>'+esc(u.name)+'</b></div><span class="chip'+(p===100?' ok':'')+'">'+p+'%</span></div>'+
+      '<div class="bar" aria-hidden="true"><i style="width:'+p+'%"></i></div><div class="note">'+esc(info)+'</div></div><div class="acts">'+
       (del?'<button class="icon danger" data-act="delUnit" data-id="'+u.id+'" type="button">¿Borrar?</button><button class="icon" data-act="cancel" type="button">No</button>'
           :'<button class="icon" data-act="editUnit" data-id="'+u.id+'" type="button">Editar</button><button class="icon" aria-label="Borrar unidad" data-act="askDelUnit" data-id="'+u.id+'" type="button">✕</button>')+'</div></div>';
   }
   function renderUnits(){
     var l=units.slice().sort(function(a,b){return (a.createdAt||0)-(b.createdAt||0)});
     var s=$('#unitSummary');
-    if(!l.length){s.hidden=true;$('#unitList').innerHTML='<div class="empty"><b>Todavía no cargaron el temario</b>Escriban las unidades de la materia, una por línea, y marquen cuánto avanzaron de cada una.</div>';return}
-    var avg=Math.round(l.reduce(function(a,u){return a+(u.progress||0)},0)/l.length),full=l.filter(function(u){return (u.progress||0)===100}).length;
+    if(!l.length){s.hidden=true;$('#unitList').innerHTML='<div class="empty"><b>Todavía no cargaron el temario</b>Escriban las unidades de la materia, una por línea. El avance de cada una se calcula solo con las tareas que le vinculen en Plan.</div>';return}
+    var avg=overall(),full=l.filter(function(u){return unitStats(u.id).p===100}).length;
     s.hidden=false;
     s.innerHTML='<div class="sect-h"><h2>Avance general <span class="hl">'+avg+'%</span></h2><small>'+full+' de '+l.length+' unidades al 100%</small></div><div class="bar" aria-hidden="true"><i style="width:'+avg+'%"></i></div>';
     $('#unitList').innerHTML=l.map(unitCard).join('');
@@ -350,14 +380,14 @@ textarea{resize:vertical;min-height:64px}
 
   function renderPlan(){
     var t0=todayStr(),list=tasks.slice().sort(byOrder);
-    if(filter==='next')list=list.filter(function(t){return t.date>=t0||!t.done&&t.date<t0});
-    if(filter==='pending')list=list.filter(function(t){return !t.done});
+    if(filter==='next')list=list.filter(function(t){return t.date>=t0||!fullDone(t)&&t.date<t0});
+    if(filter==='pending')list=list.filter(function(t){return !fullDone(t)});
     var groups={};list.forEach(function(t){(groups[t.date]=groups[t.date]||[]).push(t)});
     var days=Object.keys(groups).sort();
     if(!days.length){$('#planList').innerHTML='<div class="empty"><b>El plan está vacío</b>Elegí un día arriba y escribí qué tienen que estudiar. Cada día aparece acá y en la pestaña Hoy.</div>';return}
     $('#planList').innerHTML=days.map(function(d){
-      var g=groups[d],all=tasks.filter(function(t){return t.date===d}),dn=all.filter(function(t){return t.done}).length;
-      return '<div class="sect"><div class="sect-h"><h2>'+(d===t0?'<span class="hl">'+esc(longDate(d))+'</span>':esc(longDate(d)))+'</h2><small>'+esc(relLabel(d))+' · '+dn+'/'+all.length+' hechas</small></div>'+
+      var g=groups[d],all=tasks.filter(function(t){return t.date===d}),dn=all.filter(fullDone).length;
+      return '<div class="sect"><div class="sect-h"><h2>'+(d===t0?'<span class="hl">'+esc(longDate(d))+'</span>':esc(longDate(d)))+'</h2><small>'+esc(relLabel(d))+' · '+dn+'/'+all.length+' completas</small></div>'+colHead()+
         g.map(function(t){return taskCard(t)}).join('')+'</div>'}).join('');
   }
 
@@ -403,7 +433,7 @@ textarea{resize:vertical;min-height:64px}
 
   function render(){
     var a=document.activeElement,aid=a&&a.id,s0=a&&a.selectionStart,s1=a&&a.selectionEnd;
-    renderHeader();renderHoy();renderPlan();renderUnits();renderDoubts();renderRes();renderPomoStats();
+    syncUnitSelect();renderHeader();renderHoy();renderPlan();renderUnits();renderDoubts();renderRes();renderPomoStats();
     if(aid&&/^(et|ed|rs|cm|eu)-/.test(aid)){var n=document.getElementById(aid);if(n){n.focus();try{n.setSelectionRange(s0,s1)}catch(e){}}}
   }
 
@@ -424,11 +454,14 @@ textarea{resize:vertical;min-height:64px}
   var actions={
     goTab:function(id){setTab(id)},
     cancel:function(){ui.editingTask=ui.editingUnit=ui.editingDoubt=ui.resolving=ui.confirm=null;render()},
-    toggle:function(id){var t=find(tasks,id);return safe(function(){return col('tasks').doc(id).update({done:!t.done,doneBy:t.done?null:me,doneAt:t.done?null:Date.now()})})},
+    toggle:function(id,b){var t=find(tasks,id),p=b.dataset.p,k='done'+cap(p),on=!isDone(t,p),o=p==='bian'?'euge':'bian',u={};
+      u[k]=on;u[k+'By']=on?me:null;u[k+'At']=on?Date.now():null;
+      if(t['done'+cap(o)]===undefined)u['done'+cap(o)]=isDone(t,o);
+      return safe(function(){return col('tasks').doc(id).update(u)})},
     toToday:function(id){return safe(function(){return col('tasks').doc(id).update({date:todayStr()})})},
-    editTask:function(id){var t=find(tasks,id);ui.drafts['t:'+id]={title:t.title,detail:t.detail||'',date:t.date};ui.editingTask=id;ui.confirm=null;render()},
+    editTask:function(id){var t=find(tasks,id);ui.drafts['t:'+id]={title:t.title,detail:t.detail||'',date:t.date,unitId:t.unitId||''};ui.editingTask=id;ui.confirm=null;render()},
     saveTask:function(id){var d=ui.drafts['t:'+id];if(!d.title.trim()||!d.date){toast('Falta el título o el día.');return}
-      return safe(function(){return col('tasks').doc(id).update({title:d.title.trim(),detail:d.detail.trim(),date:d.date}).then(function(){ui.editingTask=null;render()})})},
+      return safe(function(){return col('tasks').doc(id).update({title:d.title.trim(),detail:d.detail.trim(),date:d.date,unitId:d.unitId||''}).then(function(){ui.editingTask=null;render()})})},
     askDelTask:function(id){ui.confirm='t:'+id;render()},
     delTask:function(id){ui.confirm=null;return safe(function(){return col('tasks').doc(id).delete()})},
     editDoubt:function(id){var d=find(doubts,id);ui.drafts['d:'+id]={text:d.text,topic:d.topic||''};ui.editingDoubt=id;ui.confirm=null;render()},
@@ -444,12 +477,14 @@ textarea{resize:vertical;min-height:64px}
     sendCm:function(id){var x=(ui.drafts['c:'+id]||{}).text||'';x=x.trim();if(!x){toast('Escribí un comentario.');return}
       return safe(function(){return col('comments').add({doubtId:id,text:x,by:me,createdAt:Date.now()}).then(function(){ui.drafts['c:'+id]={text:''};render()})})},
     delCm:function(id){return safe(function(){return col('comments').doc(id).delete()})},
-    setProgress:function(id,b){return safe(function(){return col('units').doc(id).update({progress:Number(b.dataset.val)})})},
     editUnit:function(id){var u=find(units,id);ui.drafts['u:'+id]={name:u.name};ui.editingUnit=id;ui.confirm=null;render()},
     saveUnit:function(id){var d=ui.drafts['u:'+id];if(!d.name.trim()){toast('Escribí el nombre de la unidad.');return}
       return safe(function(){return col('units').doc(id).update({name:d.name.trim()}).then(function(){ui.editingUnit=null;render()})})},
     askDelUnit:function(id){ui.confirm='u:'+id;render()},
-    delUnit:function(id){ui.confirm=null;return safe(function(){return col('units').doc(id).delete()})},
+    delUnit:function(id){ui.confirm=null;return safe(async function(){
+      var ts=tasks.filter(function(t){return t.unitId===id});
+      for(var i=0;i<ts.length;i++){await col('tasks').doc(ts[i].id).update({unitId:''})}
+      await col('units').doc(id).delete()})},
     resolveOpen:function(id){var d=find(doubts,id);ui.drafts['r:'+id]={explanation:d.explanation||''};ui.resolving=id;ui.confirm=null;render();
       var n=document.getElementById('rs-text-'+id);if(n)n.focus()},
     saveResolve:function(id){var d=find(doubts,id),r=ui.drafts['r:'+id];
@@ -478,7 +513,7 @@ textarea{resize:vertical;min-height:64px}
     if(!date||!lines.length){toast('Elegí un día y escribí al menos una tarea.');return}
     safe(async function(){
       var base=Date.now();
-      for(var i=0;i<lines.length;i++){await col('tasks').add({title:lines[i],detail:'',date:date,done:false,createdBy:me,createdAt:base+i})}
+      for(var i=0;i<lines.length;i++){await col('tasks').add({title:lines[i],detail:'',date:date,unitId:$('#tUnit').value||'',doneBian:false,doneEuge:false,createdBy:me,createdAt:base+i})}
       $('#tLines').value='';toast(lines.length===1?'Tarea agregada.':lines.length+' tareas agregadas.')})});
 
   $('#doubtForm').addEventListener('submit',function(e){e.preventDefault();if(!dbApi){failMsg();return}
@@ -531,7 +566,7 @@ textarea{resize:vertical;min-height:64px}
   function refreshNames(){
     if(!userApi)return;clearTimeout(nameTimer);
     nameTimer=setTimeout(async function(){
-      var ids={};tasks.forEach(function(t){if(t.doneBy)ids[t.doneBy]=1});
+      var ids={};
       doubts.forEach(function(d){if(d.createdBy)ids[d.createdBy]=1;if(d.resolvedBy)ids[d.resolvedBy]=1});
       comments.forEach(function(c){if(c.by)ids[c.by]=1});
       var list=Object.keys(ids);if(!list.length)return;
